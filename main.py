@@ -1,9 +1,9 @@
 import os
 import datetime
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, Form, File
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, Form, File, Query
 from fastapi.staticfiles import StaticFiles
-from typing import Annotated
-from sqlalchemy.orm import Session
+from typing import Annotated, List
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select
 from database import SessionLocal
 import schema
@@ -45,14 +45,20 @@ def create_plant(plant_in: schema.PlantCreate, db: Session = Depends(get_db)):
 # Get all plants (optional: add pagination)
 @app.get("/plants", response_model=list[schema.PlantResponse])
 def get_all_plants(db: Session = Depends(get_db)):
-    res = db.query(models.Plant)
-    return res.all()
+    query = select(models.Plant).options(selectinload(models.Plant.photos))
+    res = db.execute(query)
+    return res.scalars().all()
 
 
 # Get a plant by id
 @app.get("/plants/{id}", response_model=schema.PlantResponse)
 def get_plant_by_id(id: int, db: Session = Depends(get_db)):
-    plant = db.get(models.Plant, id)
+    query = (
+        select(models.Plant)
+        .where(models.Plant.id == id)
+        .options(selectinload(models.Plant.photos))
+    )
+    plant = db.execute(query).scalars().first()
     if not plant:
         raise HTTPException(status_code=404, detail=f"Plant with id {id} not found.")
     return plant
@@ -199,7 +205,13 @@ async def add_photo(
     photo: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    file_name = f"{photo_data.date.isoformat()}.{photo.filename}"
+    pid = photo_data.plant_id
+    plant = db.query(models.Plant).filter(models.Plant.id == pid).first()
+    if not plant:
+        raise HTTPException(status_code=404, detail=f"Plant with id {pid} not found.")
+    plant.name
+
+    file_name = f"{photo_data.date.isoformat()}-{plant.name.replace(" ", "_")}"
     file_location = f"photos/{file_name}"
 
     with open(file_location, "wb") as f:

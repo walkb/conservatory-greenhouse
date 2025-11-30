@@ -5,6 +5,23 @@ from fastapi import UploadFile
 from models import HealthStatus
 
 
+class PhotoBase(BaseModel):
+    plant_id: int
+    date: date
+
+
+class PhotoCreate(PhotoBase):
+    pass
+
+
+class PhotoResponse(PhotoBase):
+    id: int
+    path: str
+
+    class Config:
+        from_attributes = True
+
+
 # Base schema
 class PlantBase(BaseModel):
     name: str
@@ -32,6 +49,7 @@ class PlantUpdate(BaseModel):
 # Reading a plant (returns id)
 class PlantResponse(PlantBase):
     id: int
+    photos: list[PhotoResponse] | None = None
 
     class Config:
         from_attributes = True
@@ -53,23 +71,6 @@ class WateringResponse(WateringBase):
     date: date
     # uncomment if we want to fetch plant as well
     # plant: PlantResponse
-
-    class Config:
-        from_attributes = True
-
-
-class PhotoBase(BaseModel):
-    plant_id: int
-    date: date
-
-
-class PhotoCreate(PhotoBase):
-    pass
-
-
-class PhotoResponse(PhotoBase):
-    id: int
-    path: str
 
     class Config:
         from_attributes = True
